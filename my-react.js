@@ -6,61 +6,61 @@ const createElement = (tag, attrs, ...children) => {
     }
 }
 
-const render = (vnode, container) => {
-    if (typeof vnode.tag === 'function') {
-        vnode = vnode.tag({
-            attrs: vnode.attrs,
-            children: vnode.children
+const render = (n, el) => {
+    if (typeof n.tag === 'function') {
+        n = n.tag({
+            attrs: n.attrs,
+            children: n.children
         });
     }
 
-    if (typeof vnode === 'number') {
-        vnode = vnode.toString();
+    if (typeof n === 'number') {
+        n = n.toString();
     }
 
-    if (typeof vnode === 'string') {
-        const textNode = document.createTextNode(vnode);
-        return container.appendChild(textNode);
+    if (typeof n === 'string') {
+        const textNode = document.createTextNode(n);
+        return el.appendChild(textNode);
     }
 
-    const dom = document.createElement(vnode.tag);
+    const dom = document.createElement(n.tag);
 
-    if (vnode.attrs) {
-        Object.keys(vnode.attrs).forEach((key) => {
-            const val = vnode.attrs[key];
+    if (n.attrs) {
+        Object.keys(n.attrs).forEach((key) => {
+            const val = n.attrs[key];
             setAttribute(dom, key, val)
         });
     }
 
-    vnode.children.forEach(child => render(child, dom));
+    n.children.forEach(child => render(child, dom));
 
-    return container.appendChild(dom);
+    return el.appendChild(dom);
 }
 
-const setAttribute = (dom, name, value) => {
-    if (name === 'className') {
-        name = 'class';
+const setAttribute = (el, label, val) => {
+    if (label === 'className') {
+        label = 'class';
     }
-    
-    if (/on\w+/.test(name)) {
-        name = name.toLowerCase();
-        dom[name] = value || '';
-    } else if (name === 'style') {
-        if (!value || typeof value === 'string') {
-            dom.style.cssText = value || '';
-        } else if (value && typeof value === 'object') {
-            for (let name in value) {
-                dom.style[ name ] = typeof value[ name ] === 'number' ? value[ name ] + 'px' : value[ name ];
+
+    if (/on\w+/.test(label)) {
+        label = label.toLowerCase();
+        el[label] = val || '';
+    } else if (label === 'style') {
+        if (!val || typeof val === 'string') {
+            el.style.cssText = val || '';
+        } else if (val && typeof val === 'object') {
+            for (let _v in val) {
+                el.style[_v] = typeof val[_v] === 'number' ? val[_v] + 'px' : val[_v];
             }
         }
     } else {
-        if (name in dom) {
-            dom[name] = value || '';
+        if (label in el) {
+            el[label] = val || '';
         }
-        if (value) {
-            dom.setAttribute(name, value);
+        if (val) {
+            el.setAttribute(label, val);
         } else {
-            dom.removeAttribute(name);
+            el.removeAttribute(label);
         }
     }
 }
@@ -77,27 +77,69 @@ const useState = (initVal) => {
     const setState = (state) => {
         stateList[curPointer] = state;
         statePointer = 0;
-        DomList.forEach(dom => {
+        effectPointer = 0;
+        domList.forEach(dom => {
             dom.rerender();
         });
     }
     return [state, setState];
 }
 
-const DomList = [];
+const arrayComp = (x, y) => {
+
+    if (!x || !y) {
+        return false;
+    }
+
+    if (x.length !== y.length) {
+        return false;
+    }
+
+    for (let i = 0; i < x.length; i++) {
+        if (x[i] !== y[i]) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+let effectPointer = 0;
+const watchList = [];
+const effectQueue = [];
+
+const useEffect = (effect, watch = null) => {
+    if (watch === null || !arrayComp(watch, watchList[effectPointer])) {
+        effectQueue.push(effect);
+        watchList[effectPointer] = watch;
+    }
+    effectPointer++;
+}
+
+const execEffect = () => {
+    while(effectQueue.length > 0) {
+        const effect = effectQueue.shift();
+        effect();
+    }
+}
+
+const domList = [];
 
 export const MyReact = {
     createElement,
-    useState
+    useState,
+    useEffect,
 }
 
 export const MyReactDom = {
-    render: (vnode, container) => {
+    render: (_n, _el) => {
         const rerender = () => {
-            container.innerHTML = '';
-            return render(vnode, container);
+            _el.innerHTML = '';
+            const n = render(_n, _el);
+            execEffect();
+            return n;
         }
-        DomList.push({rerender});
-        rerender();
+        domList.push({ rerender });
+        return rerender();
     }
 }
