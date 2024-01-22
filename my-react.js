@@ -72,12 +72,16 @@ const useState = (initVal) => {
     let state = initVal
     if (stateList[statePointer]) {
         state = stateList[statePointer];
+    } else {
+        stateList[statePointer] = state;
     }
     const curPointer = statePointer++;
     const setState = (state) => {
-        stateList[curPointer] = state;
-        statePointer = 0;
-        effectPointer = 0;
+        if (typeof state === 'function') {
+            stateList[curPointer] = state(stateList[curPointer]);
+        } else {
+            stateList[curPointer] = state;
+        }
         domList.forEach(dom => {
             dom.rerender();
         });
@@ -123,18 +127,40 @@ const execEffect = () => {
     }
 }
 
+let refPointer = 0;
+const refList = [];
+
+const useRef = (initVal) => {
+    let ref = {current: initVal}
+    if (refList[refPointer]) {
+        ref = refList[refPointer];
+    } else {
+        refList[refPointer] = ref;
+    }
+    refPointer++;
+    return ref;
+}
+
+const resetPointers = () => {
+    statePointer = 0;
+    effectPointer = 0;
+    refPointer = 0;
+}
+
 const domList = [];
 
 export const MyReact = {
     createElement,
     useState,
     useEffect,
+    useRef,
 }
 
 export const MyReactDom = {
     render: (_n, _el) => {
         const rerender = () => {
             _el.innerHTML = '';
+            resetPointers();
             const n = render(_n, _el);
             execEffect();
             return n;
