@@ -1,4 +1,5 @@
 package-lock.json
-.cache
+pnpm-lock.yaml
+.parcel-cache
 dist
 node_modules
