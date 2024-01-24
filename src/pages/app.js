@@ -1,4 +1,4 @@
-import { MyReact } from "../my-react"
+import { MyReact } from "../my-react/my-react"
 
 const useTitle = (_t) => {
     const [title, setTitle] = MyReact.useState(_t);
