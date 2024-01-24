@@ -1,12 +1,203 @@
 const createElement = (tag, attrs, ...children) => {
+
+    attrs = attrs || {};
+
     return {
         tag,
         attrs,
-        children
+        children,
+        key: attrs.key || null,
     }
 }
 
+const isSameNodeType = ( el, n ) => {
+    if ( typeof n === 'string' || typeof n === 'number' ) {
+        return el.nodeType === Node.TEXT_NODE;
+    }
+
+    if ( typeof n.tag === 'string' ) {
+        return el.nodeName.toLowerCase() === n.tag.toLowerCase();
+    }
+
+    return c.nodeName.toLowerCase() === vchild.tag.toLowerCase();
+}
+
+/**
+ * diff node attributes
+ * @param {HTMLElement} el dom
+ * @param {vnode} n vnode
+ */
+const diffAttributes = (el, n) => {
+    const old = {};
+    const nAttrs = n.attrs;
+
+    for (let i = 0; i < el.attributes.length; i++) {
+        const attr = el.attributes[i];
+        old[attr.name] = attr.value;
+    }
+
+    for (let name in old) {
+        if (!(name in nAttrs)) {
+            setAttribute(el, name, undefined);
+        }
+    }
+
+    for (let name in nAttrs) {
+        if (old[name] !== nAttrs[name]) {
+            setAttribute(el, name, nAttrs[name]);
+        }
+    }
+}
+
+/**
+ * diff child nodes
+ * @param {HTMLElement} el 
+ * @param {vnode[]} vc 
+ */
+const diffChildren = (el, vc) => {
+    const elChildren = el.childNodes;
+    const children = [];
+
+    const keyed = {};
+
+    if (elChildren.length > 0) {
+        for (let i = 0; i < elChildren.length; i++) {
+            const child = elChildren[i];
+            const key = child.key;
+            
+            if (key) {
+                keyed[key] = child;
+            } else {
+                children.push(child);
+            }
+        }
+    }
+
+    if (vc && vc.length > 0) {
+        let min = 0;
+        let childrenLen = children.length;
+
+        for (let i = 0; i < vc.length; i++) {
+            const vchild = vc[i];
+            const key = vchild.key;
+            let child;
+
+            if (key) {
+                if (keyed[key]) {
+                    child = keyed[key];
+                    keyed[key] = undefined;
+                }
+            } else if (min < childrenLen) {
+                for (let j = min; j < childrenLen; j++) {
+                    let c = children[j];
+                    
+                    if (c && (isSameNodeType(c, vchild))) {
+                        child = c;
+                        children[j] = undefined;
+
+                        (j === childrenLen - 1) && childrenLen--;
+                        (j === min) && min++;
+                        break;
+                    }
+                }
+            }
+
+            child = diff(child, vchild);
+
+            const f = elChildren[i];
+            if (child && child !== el && child !== f) {
+                if (!f) {
+                    el.appendChild(child);
+                } else if (child === f.nextSibling) {
+                    f.parentNode.removeChild(f);
+                } else {
+                    el.insertBefore(child ,f);
+                }
+            }
+        }
+    }
+}
+
+/**
+ * diff components
+ * @param {HTMLElement} el dom
+ * @param {vnode} n vnode
+ */
+const diffComponent = (el, n) => {
+    // TODO
+}
+
+/**
+ * diff incoming vnode and the real dom
+ * @param {HTMLElement} el dom
+ * @param {vnode} n vnode
+ * @returns {HTMLElement}
+ */
+const diff = (el, n) => {
+    let _el = el;
+
+    if (n === null || n === undefined) {
+        n = '';
+    }
+
+    if (typeof n === 'number') {
+        n = n.toString();
+    }
+
+    if (typeof n === 'string') {
+        if (el && el.nodeType === Node.TEXT_NODE) {
+            el.textContent !== n && (el.textContent = n);
+        } else {
+            _el = document.createTextNode(n);
+            if (el && el.parentNode) {
+                el.parentNode.replaceChild(_el, el);
+            }
+        }
+
+        return _el;
+    }
+
+    if (typeof n.tag === 'function') {
+        n = n.tag({
+            attrs: n.attrs,
+            children: n.children
+        });
+        
+        return diffChildren(_el, [n]);
+    }
+
+    if (!el || !isSameNodeType(el, n)) {
+        _el = document.createElement(n.tag);
+
+        if (el) {
+            [...el.childNodes].map(_el.appendChild);
+
+            if (el.parentNode) {
+                el.parentNode.replaceChild(_el, el);
+            }
+        }
+    }
+
+    if (n.children && n.children.length > 0 || (_el.childNodes && _el.childNodes.length > 0)) {
+        diffChildren(_el, n.children);
+    }
+
+    diffAttributes(_el, n);
+
+    return _el;
+}
+
+/**
+ * renders the vnode to real dom
+ * @param {vnode} n 
+ * @param {HTMLElement} el 
+ * @returns {HTMLElement}
+ */
 const render = (n, el) => {
+    if (n === null || n === undefined) {
+        return;
+    }
+
     if (typeof n.tag === 'function') {
         n = n.tag({
             attrs: n.attrs,
@@ -159,13 +350,13 @@ export const MyReact = {
 export const MyReactDom = {
     render: (_n, _el) => {
         const rerender = () => {
-            _el.innerHTML = '';
             resetPointers();
-            const n = render(_n, _el);
+            const n = diff(_el, _n);
             execEffect();
             return n;
         }
         domList.push({ rerender });
-        return rerender();
+        _el.innerHTML = '';
+        return render(_n, _el);
     }
 }

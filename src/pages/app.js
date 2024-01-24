@@ -68,8 +68,9 @@ export const App = () => {
     return (
         <div>
             <h1 style={{color: count1 & 1 ? "red" : "black"}}>{count1}</h1>
+            {(count1 & 1) ? <h2>aa</h2> : null}
             <button onClick={() => setCount1(count1 + 1)}>click</button>
-            <h1>{count2}</h1>
+            <h1>count: {count2}</h1>
             <button onClick={() => setCount2(count2 + 1)}>click</button>
             <button onClick={handleSuperClick}>super click</button>
             <h1>{time}</h1>
