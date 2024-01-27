@@ -1,3 +1,5 @@
+const flattenArray = (arr) => arr.reduce((acc, val) => acc.concat(Array.isArray(val) ? flattenArray(val) : val), []);
+
 const createElement = (tag, attrs, ...children) => {
 
     attrs = attrs || {};
@@ -5,7 +7,7 @@ const createElement = (tag, attrs, ...children) => {
     return {
         tag,
         attrs,
-        children,
+        children: children && flattenArray(children),
         key: attrs.key || null,
     }
 }
@@ -15,11 +17,11 @@ const isSameNodeType = ( el, n ) => {
         return el.nodeType === Node.TEXT_NODE;
     }
 
-    if ( typeof n.tag === 'string' ) {
+    if ( typeof n?.tag === 'string' ) {
         return el.nodeName.toLowerCase() === n.tag.toLowerCase();
     }
 
-    return c.nodeName.toLowerCase() === vchild.tag.toLowerCase();
+    return el.nodeName.toLowerCase() === n?.tag?.toLowerCase();
 }
 
 /**
@@ -63,7 +65,7 @@ const diffChildren = (el, vc) => {
     if (elChildren.length > 0) {
         for (let i = 0; i < elChildren.length; i++) {
             const child = elChildren[i];
-            const key = child.key;
+            const key = child?.getAttribute?.('key');
             
             if (key) {
                 keyed[key] = child;
@@ -79,7 +81,7 @@ const diffChildren = (el, vc) => {
 
         for (let i = 0; i < vc.length; i++) {
             const vchild = vc[i];
-            const key = vchild.key;
+            const key = vchild?.key;
             let child;
 
             if (key) {
@@ -258,9 +260,11 @@ const setAttribute = (el, label, val) => {
 
 let statePointer = 0;
 const stateList = [];
+const setQueue = [];
 
 const useState = (initVal) => {
     let state = initVal
+    console.log(this);
     if (stateList[statePointer]) {
         state = stateList[statePointer];
     } else {
@@ -268,16 +272,33 @@ const useState = (initVal) => {
     }
     const curPointer = statePointer++;
     const setState = (state) => {
-        if (typeof state === 'function') {
-            stateList[curPointer] = state(stateList[curPointer]);
-        } else {
-            stateList[curPointer] = state;
+        if (setQueue.length === 0) {
+            defer(flushSetQueue);
         }
-        domList.forEach(dom => {
-            dom.rerender();
+        setQueue.push(() => {
+            if (typeof state === 'function') {
+                stateList[curPointer] = state(stateList[curPointer]);
+            } else {
+                stateList[curPointer] = state;
+            }
         });
     }
     return [state, setState];
+}
+
+const flushSetQueue = () => {
+    while(setQueue.length > 0) {
+        const set = setQueue.shift();
+        set();
+    }
+    domList.forEach(dom => {
+        dom.rerender();
+    });
+}
+
+const defer = ( fn ) => {
+    // return Promise.resolve().then( fn );
+    return setTimeout(fn, 16);
 }
 
 const arrayComp = (x, y) => {
@@ -311,7 +332,7 @@ const useEffect = (effect, watch = null) => {
     effectPointer++;
 }
 
-const execEffect = () => {
+const flushEffect = () => {
     while(effectQueue.length > 0) {
         const effect = effectQueue.shift();
         effect();
@@ -352,11 +373,13 @@ export const MyReactDom = {
         const rerender = () => {
             resetPointers();
             const n = diff(_el, _n);
-            execEffect();
+            flushEffect();
             return n;
         }
         domList.push({ rerender });
         _el.innerHTML = '';
-        return render(_n, _el);
+        const _dom = render(_n, _el);
+        flushEffect();
+        return _dom;
     }
 }
