@@ -297,8 +297,7 @@ const flushSetQueue = () => {
 }
 
 const defer = ( fn ) => {
-    // return Promise.resolve().then( fn );
-    return setTimeout(fn, 16);
+    return Promise.resolve().then( fn );
 }
 
 const arrayComp = (x, y) => {
