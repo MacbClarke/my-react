@@ -235,7 +235,11 @@ const setAttribute = (el, label, val) => {
         label = 'class';
     }
 
-    if (/on\w+/.test(label)) {
+    if (label === 'ref') {
+        if (val instanceof Object && val.hasOwnProperty('current')) {
+            val.current = el;
+        }
+    } else if (/on\w+/.test(label)) {
         label = label.toLowerCase();
         el[label] = val || '';
     } else if (label === 'style') {
@@ -264,7 +268,6 @@ const setQueue = [];
 
 const useState = (initVal) => {
     let state = initVal
-    console.log(this);
     if (stateList[statePointer]) {
         state = stateList[statePointer];
     } else {

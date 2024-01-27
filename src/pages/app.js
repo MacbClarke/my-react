@@ -1,4 +1,4 @@
-import { MyReact, useEffect, useState } from "../my-react"
+import { MyReact, useEffect, useRef, useState } from "../my-react"
 import bind from "../utils/bind";
 
 const generateRandomString = (length) => {
@@ -16,10 +16,15 @@ const generateRandomString = (length) => {
 export const App = () => {
   const [name, setName] = useState('');
   const [list, setList] = useState([]);
+  const inputRef = useRef();
 
   useEffect(() => {
     console.log('render')
   })
+
+  useEffect(() => {
+    inputRef.current.focus();
+  }, [])
 
   const handleAdd = () => {
     const _cache = [...list, {
@@ -28,18 +33,20 @@ export const App = () => {
     }]
     setName('');
     setList(_cache);
+    inputRef.current.focus();
   }
 
   const handleRemove = (id) => {
     const _list = list.filter(item => item.id !== id);
     setList(_list);
+    inputRef.current.focus();
   }
 
   return (
     <div>
       {list.map(item => (<div key={item.id}>{item.name} <span onClick={() => handleRemove(item.id)}>remove</span></div>))}
       <div>preview: {name}</div>
-      <input {...bind(name, setName)} />
+      <input ref={inputRef} {...bind(name, setName)} />
       <button onClick={handleAdd}>add</button>
     </div>
   );
